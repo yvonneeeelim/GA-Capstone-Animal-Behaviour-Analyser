@@ -1,5 +1,6 @@
 
 import streamlit as st
+os.environ['CV2_CUDNN_STREAM'] = '1'
 import cv2
 import numpy as np
 import pickle
