@@ -59,44 +59,40 @@ with tab1:
         model = pickle.load(model_file)
 
     input_size = (32,32)
+
     
-    # Setup required functions
-    def preprocess_frame(frame):
-        frame = cv2.resize(frame, input_size)
-        frame = frame / 255.0
-        return frame.reshape((1,) + frame.shape)
-    
-    def extract_frames(video_file_path, save_path):
-        cap = cv2.VideoCapture(video_file_path)
+    # Setup function to convert video to frames
+    def process_video(video_file):
+        frames = []
+        cam = cv2.VideoCapture(video_file)
         frameno = 0
-        frame_paths = []
-        
+
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            # Preprocess frame and make prediction
-            processed_frame = preprocess_frame(frame)
-            prediction = model.predict(processed_frame)
-            
-            # Interpret the prediction
-            if prediction[0][0] > 0.5:
-                result = 'Wag Tail'
-            
+            ret, frame = cam.read()
+            if ret:
+                # if video is still left continue creating images
+                name = str(frameno) + '.jpg'
+
+                cv2.imwrite(name, frame)
+                frameno += 1
             else:
-                result = 'Sit Down'
-            
-            # Save frame with prediction label
-            name = os.path.join(save_path, f"{frameno}_{result}.jpg")
-            cv2.imwrite(name, frame)
-            frame_paths.append(name)
-            frameno += 1
-        
-        cap.release()
+                break
+
+        cam.release()
         cv2.destroyAllWindows()
-        
-        return frame_paths
+
+        # Process frame and make prediction
+        predictions = model.predict(np.array(frames))
+
+        # Interpret the prediction
+        behaviour_results = []
+        for prediction in predictions:
+            if prediction > 0.5:
+                behaviour_results.append('Sit Down')
+            else:
+                behaviour_results.append('Wag Tail')
+        return behaviour_results
+                    
     
     def main():
         st.title('Animal Behaviour Analyser')
@@ -112,12 +108,12 @@ with tab1:
                 temp_video.write(uploaded_file.read())
             
             # Extract frames and make predictions
-            frame_paths = extract_frames(temp_video.name, './user_video')
+            behaviour_results = process_video(temp_video.name)
             
-            #Display predictions
+            # Display predictions
             st.header("Your pet's behaviour analysed:")
-            for idx, frame_path in enumerate(frame_paths):
-                st.image(frame_path, caption=f"Frame {idx + 1}")
+            for idx, behaviour in enumerate(behaviour_results):
+                st.image(f"Frame {idx + 1}: {behaviour}")
     
     if __name__ == "__main__":
         main()
