@@ -1,10 +1,10 @@
 
 import streamlit as st
+import os
 os.environ['CV2_CUDNN_STREAM'] = '1'
 import cv2
 import numpy as np
 import pickle
-import os
 from tempfile import NamedTemporaryFile
 
 import tensorflow as tf
