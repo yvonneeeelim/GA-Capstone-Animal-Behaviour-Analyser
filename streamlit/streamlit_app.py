@@ -55,7 +55,7 @@ with tab1:
     st.header("Upload your Pet Video")
     
     # Load the trained model
-    with open("model_path.pkl", 'rb') as model_file:
+    with open("cnn_model.pkl", 'rb') as model_file:
         model = pickle.load(model_file)
 
     input_size = (32,32)
