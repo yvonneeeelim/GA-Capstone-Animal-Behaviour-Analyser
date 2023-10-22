@@ -112,8 +112,6 @@ with tab1:
         for idx, behaviour in enumerate(behaviour_results):
             st.image(f"Frame {idx + 1}: {behaviour}")
     
-    if __name__ == "__main__":
-        main()
             
             
             
