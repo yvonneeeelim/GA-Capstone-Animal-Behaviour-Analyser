@@ -53,14 +53,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["Upload your Pet Video", "Upload an image", "S
 
 with tab1:
     st.header("Upload your Pet Video")
-    
-    # Load the trained model
-    with open("cnn_model.pkl", 'rb') as model_file:
-        model = pickle.load(model_file)
 
-    input_size = (32,32)
-
-    
     # Setup function to convert video to frames
     def process_video(video_file):
         frames = []
@@ -81,6 +74,10 @@ with tab1:
         cam.release()
         cv2.destroyAllWindows()
 
+        # Load the trained model
+        with open("cnn_model.pkl", 'rb') as model_file:
+            model = pickle.load(model_file)
+
         # Process frame and make prediction
         predictions = model.predict(np.array(frames))
 
@@ -94,26 +91,26 @@ with tab1:
         return behaviour_results
                     
     
-    def main():
-        st.title('Animal Behaviour Analyser')
-        st.write('Upload a video of your pet to understand its behaviour')
+
+    st.title('Animal Behaviour Analyser')
+    st.write('Upload a video of your pet to understand its behaviour')
         
-        # Get user input for video upload
-        uploaded_file = st.file_uploader("Choose a video file", type=["mp4"])
+    # Get user input for video upload
+    uploaded_file = st.file_uploader("Choose a video file", type=["mp4"])
         
-        # Process the uploaded video if it exists
-        if uploaded_file is not None:
-            # Save the uploaded video to a temporary file
-            with NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
-                temp_video.write(uploaded_file.read())
+    # Process the uploaded video if it exists
+    if uploaded_file is not None:
+        # Save the uploaded video to a temporary file
+        with NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+            temp_video.write(uploaded_file.read())
             
-            # Extract frames and make predictions
-            behaviour_results = process_video(temp_video.name)
+        # Extract frames and make predictions
+        behaviour_results = process_video(temp_video.name)
             
-            # Display predictions
-            st.header("Your pet's behaviour analysed:")
-            for idx, behaviour in enumerate(behaviour_results):
-                st.image(f"Frame {idx + 1}: {behaviour}")
+        # Display predictions
+        st.header("Your pet's behaviour analysed:")
+        for idx, behaviour in enumerate(behaviour_results):
+            st.image(f"Frame {idx + 1}: {behaviour}")
     
     if __name__ == "__main__":
         main()
