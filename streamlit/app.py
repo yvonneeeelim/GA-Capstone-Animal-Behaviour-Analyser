@@ -57,7 +57,7 @@ with tab1:
     st.header("Upload your Pet Video")
 
     # Load the trained model
-    model = load_model("cnn_model.h5")
+    model = tf.keras.models.load_model('cnn_model.keras')
 
     def preprocess_frames(frames):
         processed_frames = []
