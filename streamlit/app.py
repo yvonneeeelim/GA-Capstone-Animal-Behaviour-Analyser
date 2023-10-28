@@ -13,8 +13,8 @@ from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 
 # opening the image
-image = open('banner_image.jpeg', 'rb').read()
-st.image(image, use_column_width=True)
+#image = open('banner_image.jpeg', 'rb').read()
+#st.image(image, use_column_width=True)
 
 st.divider()
 
