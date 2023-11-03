@@ -13,7 +13,7 @@ from tensorflow.keras.models import load_model
 
 
 # opening the image
-image = open('banner_image.jpeg', 'rb').read()
+image = open('streamlit/banner_image.jpeg', 'rb').read()
 st.image(image, use_column_width=True)
 
 st.title("Furgorithm - Know Your Pet")
