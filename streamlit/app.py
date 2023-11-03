@@ -29,7 +29,7 @@ if selected_tab == "Upload your Pet Video":
     st.header("Upload your Pet Video")
 
     # Load the trained model
-    model = load_model("cnn_model.h5")
+    model = load_model("efficientnet_model.pkl")
 
     def preprocess_frames(frames):
         processed_frames = []
