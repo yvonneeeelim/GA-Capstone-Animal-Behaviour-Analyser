@@ -13,8 +13,8 @@ from tensorflow.keras.models import load_model
 
 
 # opening the image
-image = open('banner_image.jpeg', 'rb').read()
-st.image(image, use_column_width=True)
+#image = open('banner_image.jpeg', 'rb').read()
+#st.image(image, use_column_width=True)
 
 st.title("Furgorithm - Know Your Pet")
 st.markdown("Understanding the behavior of your pet is essential for responsible pet ownership. It ensures a fulfilling and mutually beneficial relationship between you and your animal companion.")
