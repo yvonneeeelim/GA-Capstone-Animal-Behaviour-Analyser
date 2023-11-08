@@ -3,10 +3,11 @@ import streamlit as st
 import os
 os.environ['CV2_CUDNN_STREAM'] = '1'
 import cv2
+import pandas as pd
 import numpy as np
 import pickle
 import tempfile
-from PIL import Image
+from PIL import ImageFont, ImageDraw, Image
 from efficientnet.tfkeras import EfficientNetB4
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array, load_img, array_to_img
@@ -25,69 +26,90 @@ st.markdown("---")
 # Upload tabs
 tab1, tab2, tab3 = st.tabs(["Upload your Pet Video", "Upload your Pet Image", "Understand your Pet Emotions"])
 
+# Load the trained model
+model = load_model('efficientnet2.h5')
+
 with tab1:
     st.header("Upload your Pet Video")
     
     class_labels = ['Relaxed', 'Sad']
-    
-    # Load the trained model
-    model = load_model('efficientnet2.h5')
 
-    def preprocess_frames(frames):
-        processed_frames = []
-        for frame in frames:
-            frame = frame.astype(np.float32) / 255.0  # Normalize pixel values to [0, 1]
-            processed_frames.append(frame)
-        return np.array(processed_frames)
+    # Set font
+    font = ImageFont.truetype(font = "C:/Windows/Fonts/Arial.ttf", size = 40)
 
-    def annotate_video(input_video_path, output_video_path, model, video_records=None):
-        frames = []
-        total_frames = 0
-        relaxed_count = 0
-        sad_count = 0
-        cap = cv2.VideoCapture(input_video_path)
-        frame_width = int(cap.get(3))
-        frame_height = int(cap.get(4))
-        out = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (frame_width, frame_height))
+    stframe = st.empty()
+    total_frames = 0
+    relaxed_count = 0
+    sad_count = 0
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
+    #file uploader
+    video_file_buffer = st.file_uploader("Upload an image/video", type=[ "jpeg","jpg","png","mp4", "mov",'avi','asf','m4v'])
+
+    #temporary file name 
+    tfflie = tempfile.NamedTemporaryFile(delete=False)
+
+    if video_file_buffer:
+        tfflie.write(video_file_buffer.read())
+        vid = cv2.VideoCapture(tfflie.name)
+
+        #values 
+        width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(vid.get(cv2.CAP_PROP_FPS))
+        codec = cv2.VideoWriter_fourcc('V','P','0','9')
+        out = cv2.VideoWriter('output1.webm', codec, fps, (width, height))
+
+        while vid.isOpened():
+
+            ret, frame = vid.read()
+            if ret == False:
                 break
 
+            #recoloring it back to BGR b/c it will rerender back to opencv
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            #image.flags.writeable = True
+
             # Resize the frame to match the model's input shape (384x384)
-            resized_frame = cv2.resize(frame, (384, 384))
-            frames.append(resized_frame)
+            resized_image = cv2.resize(image, (384, 384))
 
-            # Make prediction
-            processed_frame = preprocess_frames(np.array(frames))
-            predictions = model.predict(np.array(processed_frame))
-            predicted_class_index = np.argmax(predictions)
-            behaviour = class_labels[predicted_class_index]
+            # Convert the resized image to an array of floating-point numbers
+            image_array = np.array(resized_image.astype(np.float32)) / 255.0
+            image_array = image_array.reshape((1, 384, 384, 3))
 
-            if behaviour == 'Relaxed' or 'Sad':
-                total_frames += 1
+            try:
+                # Make prediction
+                predictions = model.predict(image_array)
+                predicted_class_index = np.argmax(predictions)
+                behaviour = class_labels[predicted_class_index]
 
-            if behaviour == 'Relaxed':
-                relaxed_count += 1
-            elif behaviour == 'Sad':
-                sad_count += 1
+                if behaviour == 'Relaxed' or 'Sad':
+                    total_frames += 1
 
-            # Add text annotation to the frame
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 2
-            font_thickness = 5
-            color = (255, 0, 0)  # Red color for annotation
-            text_size = cv2.getTextSize(behaviour, font, font_scale, font_thickness)[0]
-            text_x = 30  # Horizontal position from the left edge
-            text_y = frame_height - 30  # Vertical position from the bottom edge
-            cv2.putText(frame, behaviour, (text_x, text_y), font, font_scale, color, font_thickness, cv2.LINE_AA)
-            out.write(frame)
+                if behaviour == 'Relaxed':
+                    relaxed_count += 1
+                elif behaviour == 'Sad':
+                    sad_count += 1
 
-            frames.pop(0)  # Remove the oldest frame from the list
+                #st.write(behaviour)
 
-        # Close the temporary file
-        cap.release()
+                # setting image writeable back to true to be able process it
+                image.flags.writeable = True
+                pil_im = Image.fromarray(image)
+                draw = ImageDraw.Draw(pil_im)
+
+                # Print the predicted class on video frame
+                draw.text((100,400), behaviour,font=font)
+                image = np.array(pil_im)
+
+            except:
+                pass                
+
+
+            # To display the annotated live video feed
+            stframe.image(image, use_column_width=True)
+
+
+        vid.release()
         out.release()
         cv2.destroyAllWindows()
 
@@ -99,55 +121,10 @@ with tab1:
         st.write(f"Your Pet is 'Relaxed': {relaxed_percentage}%")
         st.write(f"Your Pet is 'Sad': {sad_percentage}%")
 
-        return output_video_path
-
-
-
-
-    #st.title('Animal Behaviour Analyser')
-    st.write('Upload a video of your pet to understand its behaviour')
-            
-    # Get user input for video upload
-    uploaded_file = st.file_uploader("Choose a video file", type=["mp4"])
-
-            
-    # Process the uploaded video if it exists
-    if uploaded_file is not None:
-        st.write("Analyzing video...")
-        temp_video_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-        with open(temp_video_path, "wb") as temp_file:
-            temp_file.write(uploaded_file.read())
-
-            output_video_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-            annotated_video_path = annotate_video(temp_video_path, output_video_path, model)
-
-
-            with open(annotated_video_path, "rb") as video_file:
-                video_bytes = video_file.read()
-                #st.video(video_bytes)
-                st.write(annotated_video_path)
-
-
-                # Create an auto-download button
-                st.download_button(
-                    label="Download File",
-                    data=video_bytes,
-                    file_name='Annotated Video.mp4',
-                )
-                        
-        # Remove the temporary files (only after all the previous code has completed running)
-        try:
-            os.remove(temp_video_path)
-            os.remove(output_video_path)
-        finally:
-            pass
 
 
 with tab2:
     st.header("Upload your Pet Image")
-   
-    # Load the trained model
-    model = load_model('efficientnet2.h5')
 
     # Get user input for image upload
     uploaded_file = st.file_uploader('Upload an image of your pet to understand its behaviour', type=['jpg', 'jpeg', 'png'])
@@ -180,7 +157,30 @@ with tab2:
 
 
 with tab3:
-    st.header("Understand your Pet Emotions")
+    # Set custom text font and color styles
+    st.markdown(
+        """
+        <style>
+        .header-text {
+            font-size: 24px;
+            color: #4CAF50; /* Green color for headers */
+        }
+        .subheader-text {
+            font-size: 24px;
+            color: #FF5733; /* Orange color for subheaders */
+        }
+        .emotion-text {
+            font-size: 16px;
+            color: #333; /* Dark gray color for emotion text */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Header section
+    st.markdown('<p class="header-text">Understand your Pet Emotions</p>', unsafe_allow_html=True)
+    st.write("Start practicing little habits to keep your dog healthy physically and emotionally.")
 
     # Dog images and descriptions
     dog_images = {
@@ -197,37 +197,47 @@ with tab3:
         "Sad": "If your dog seems sad, offer extra attention and love. Take them for a walk, engage in activities, and offer their favorite treats."
     }
 
+    # Display dog images and descriptions
     for emotion, image_path in dog_images.items():
         col1, col2 = st.columns([1, 3])
         with col1:
             st.image(image_path, caption=emotion, use_column_width=True)
         with col2:
-            st.write(f"**{emotion} Dog:**")
-            st.write(dog_descriptions[emotion])
+            st.markdown(f"**{emotion} Dog:**", unsafe_allow_html=True)
+            st.markdown(f"<p class='emotion-text'>{dog_descriptions[emotion]}</p>", unsafe_allow_html=True)
+
+    # Dog emotions and corresponding descriptions
+    emotions = {
+        "Happy": {
+            "Signs": "Wagging tail, relaxed body, interest in playing.",
+            "Action": "Reward with treats and playtime."
+        },
+        "Angry": {
+            "Signs": "Baring teeth, growling, tense body.",
+            "Action": "Give space, avoid confrontations. Consult a professional trainer if needed."
+        },
+        "Relaxed": {
+            "Signs": "Loose body, gentle tail wagging, comfortable lying down.",
+            "Action": "Provide a comfortable environment, cozy bed, and spend quality time together."
+        },
+        "Sad": {
+            "Signs": "Droopy ears, tucked tail, avoiding interaction.",
+            "Action": "Offer extra attention, take for a walk, engage in activities, offer favorite treats."
+        }
+    }
+
+    # Dog emotions recognition section
+    st.markdown('<p class="subheader-text">Recognising Your Dog\'s Emotions</p>', unsafe_allow_html=True)
+    st.write("Understanding your dog's emotions is essential for their well-being. Here are some tips to recognise your dog's feelings:")
+
+    # Display dog emotions and corresponding signs/actions
+    for emotion, details in emotions.items():
+        st.markdown(f"<p class='emotion-text'><strong>{emotion} Dog:</strong></p>", unsafe_allow_html=True)
+        st.markdown(f"<ul class='emotion-text'><li>Signs: {details['Signs']}</li><li>Action: {details['Action']}</li></ul>", unsafe_allow_html=True)
+        st.write("---")  # Divider between emotions
 
     # Footer
-    st.markdown("---")
     st.write("🐶 For more information and tips, consult a professional veterinarian or dog behaviorist.")
 
-    # Additional styling
-    st.markdown(
-        """
-        <style>
-        .css-1g4b3f5 {
-            background-color: #f0f5f9;
-        }
-        .css-1fa8wjc {
-            background-color: #e0f3ff;
-        }
-        .css-1aumxhk {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 
 
-
-       
